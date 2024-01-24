@@ -23,6 +23,8 @@ const (
 	codeMarshalError
 	codeReadNullError
 	codeReadUndefinedError
+	codeSetNullError
+	codeSetUndefinedError
 )
 
 func (e NodeError) Error() string {
@@ -30,6 +32,14 @@ func (e NodeError) Error() string {
 		return fmt.Sprintf("%s at %s", e.err.Error(), e.path.String())
 	}
 	return e.err.Error()
+}
+
+func newInternalError(path jsonpath, err error) error {
+	return &NodeError{
+		code: codeInternalError,
+		path: path,
+		err:  fmt.Errorf("internal error. err=%w", err),
+	}
 }
 
 // newReadNullError creates a new NodeError for attempting to read properties of null.
@@ -48,9 +58,29 @@ func newReadUndefinedError(path jsonpath) error {
 	prop := path[len(path)-1]
 
 	return &NodeError{
-		code: codeReadNullError,
+		code: codeReadUndefinedError,
 		path: path,
 		err:  fmt.Errorf("cannot read properties of undefined (reading '%v')", prop),
+	}
+}
+
+func newSetNullError(path jsonpath) error {
+	prop := path[len(path)-1]
+
+	return &NodeError{
+		code: codeSetNullError,
+		path: path,
+		err:  fmt.Errorf("cannot set properties of null (setting '%v')", prop),
+	}
+}
+
+func newSetUndefinedError(path jsonpath) error {
+	prop := path[len(path)-1]
+
+	return &NodeError{
+		code: codeSetUndefinedError,
+		path: path,
+		err:  fmt.Errorf("cannot set properties of undefined (setting '%v')", prop),
 	}
 }
 

@@ -14,17 +14,6 @@ type Node struct {
 	err    error
 }
 
-// jsonvalue represents a json.Unmarshal result.
-// (https://pkg.go.dev/encoding/json#Unmarshal)
-// It stores one of these in the any value:
-// - bool, for JSON booleans
-// - float64, for JSON numbers
-// - string, for JSON strings
-// - []any, for JSON arrays
-// - map[string]any, for JSON objects
-// - nil for JSON null
-type jsonvalue any
-
 // Parse parses the given JSON data and returns a Node representing the parsed structure.
 func Parse(data []byte) *Node {
 	value := *new(jsonvalue)
@@ -59,11 +48,11 @@ func (n *Node) Error() error {
 	return n.err
 }
 
-func (n *Node) getArrayElement(idx int) *Node {
+func (n *Node) getArrayElement(idx arrayIndex) *Node {
 	path := n.path.append(idx)
 
 	array, ok := n.value.([]any)
-	if !ok || idx > len(array) {
+	if !ok || int(idx) > len(array) {
 		return n.newChild(nil, path, newUndefined(path))
 	}
 
@@ -75,7 +64,7 @@ func (n *Node) getArrayElement(idx int) *Node {
 	}
 }
 
-func (n *Node) getObjectValue(key string) *Node {
+func (n *Node) getObjectValue(key objectKey) *Node {
 	path := n.path.append(key)
 
 	object, ok := n.value.(map[string]any)
@@ -83,7 +72,7 @@ func (n *Node) getObjectValue(key string) *Node {
 		return n.newChild(nil, path, newUndefined(path))
 	}
 
-	v, ok := object[key]
+	v, ok := object[string(key)]
 	if !ok {
 		return n.newChild(nil, path, newUndefined(path))
 	}
@@ -95,6 +84,7 @@ func (n *Node) getObjectValue(key string) *Node {
 // If no properties are provided, the current node is returned.
 // It supports nested property access using variadic parameters.
 // If multiple properties are provided, it recursively calls Get on each property.
+// If an error occurs during the operation, it returns a new Node with the error.
 func (n *Node) Get(props ...any) *Node {
 	if len(props) == 0 {
 		return n
@@ -125,10 +115,10 @@ func (n *Node) Get(props ...any) *Node {
 	}
 
 	switch typedProp := validProp.(type) {
-	case int:
+	case arrayIndex:
 		return n.getArrayElement(typedProp)
 
-	case string:
+	case objectKey:
 		return n.getObjectValue(typedProp)
 
 	default:
@@ -148,7 +138,7 @@ func (n *Node) AsArray() ([]*Node, error) {
 		nodeArray := []*Node{}
 		for i, v := range a {
 			nodeArray = append(nodeArray,
-				n.newChild(v, n.path.append(i), nil),
+				n.newChild(v, n.path.append(arrayIndex(i)), nil),
 			)
 		}
 		return nodeArray, nil
@@ -167,7 +157,7 @@ func (n *Node) AsObject() (map[string]*Node, error) {
 	if m, ok := n.value.(map[string]any); ok {
 		nodeMap := map[string]*Node{}
 		for k, v := range m {
-			nodeMap[k] = n.newChild(v, n.path.append(k), nil)
+			nodeMap[k] = n.newChild(v, n.path.append(objectKey(k)), nil)
 		}
 		return nodeMap, nil
 	}
@@ -204,6 +194,143 @@ func Typed[T any](node *Node) (T, error) {
 	return v, err
 }
 
+// Set sets the specified value at the given property path within the JSON structure.
+// If no properties are provided, it returns a new Node with the provided value.
+// It supports nested property access using variadic parameters.
+// If an error occurs during the operation, it returns a new Node with the error.
+func (n *Node) Set(value any, props ...any) *Node {
+	if n.err != nil && !n.IsUndefined() {
+		return n
+	}
+
+	if len(props) == 0 {
+		return n.replaceValue(value)
+	}
+
+	targetNode := n.
+		Get(props...). // get a Node which is replaced by the given value
+		Set(value)     // call Set with no props
+
+	if targetNode.err != nil {
+		if nodeErr, ok := targetNode.err.(*NodeError); ok {
+			isErrInTargetNode := len(n.path)+len(props) == len(targetNode.path)
+
+			// codeReadUndefinedError may occured in Get().
+			if nodeErr.code == codeReadUndefinedError && isErrInTargetNode {
+				targetNode.err = newSetUndefinedError(targetNode.path)
+				return targetNode
+			}
+
+			// codeReadNullError may occured in Get().
+			if nodeErr.code == codeReadNullError && isErrInTargetNode {
+				targetNode.err = newSetNullError(targetNode.path)
+				return targetNode
+			}
+
+		}
+		return targetNode
+	}
+
+	return targetNode.newParent(len(props))
+}
+
+func (n *Node) replaceValue(value any) *Node {
+	jvalue, err := getJSONValue(value)
+	if err != nil {
+		return &Node{
+			parent: n.parent,
+			value:  n.value,
+			path:   n.path,
+			err:    newInternalError(n.path, err),
+		}
+	}
+
+	return &Node{
+		parent: n.parent,
+		value:  jvalue,
+		path:   n.path,
+		err:    nil,
+	}
+}
+
+func (n *Node) setArrayElement(v jsonvalue, idx arrayIndex) *Node {
+	array, ok := n.value.([]any)
+	if !ok || int(idx) > len(array) {
+		path := n.path.append(idx)
+		return n.newChild(nil, path, newSetUndefinedError(path))
+	}
+
+	newValue := append([]any{}, array...)
+	newValue[int(idx)] = v
+
+	return &Node{
+		parent: n.parent,
+		value:  newValue,
+		path:   n.path,
+		err:    nil,
+	}
+}
+
+func (n *Node) setObjectValue(v jsonvalue, key objectKey) *Node {
+
+	object, ok := n.value.(map[string]any)
+	if !ok {
+		path := n.path.append(key)
+		return n.newChild(nil, path, newSetUndefinedError(path))
+	}
+
+	newValue := map[string]any{}
+	for k, v := range object {
+		newValue[k] = v
+	}
+	newValue[string(key)] = v
+
+	return &Node{
+		parent: n.parent,
+		value:  newValue,
+		path:   n.path,
+		err:    nil,
+	}
+}
+
+func (n *Node) setValue(v jsonvalue, prop property) *Node {
+	path := n.path.append(prop)
+
+	if n.IsUndefined() {
+		return n.newChild(nil, path, newSetUndefinedError(path))
+	}
+
+	if n.err != nil {
+		return n
+	}
+
+	if n.value == nil {
+		return n.newChild(nil, path, newSetNullError(path))
+	}
+
+	switch typedProp := prop.(type) {
+	case arrayIndex:
+		return n.setArrayElement(v, typedProp)
+	case objectKey:
+		return n.setObjectValue(v, typedProp)
+	default:
+		panic(fmt.Sprintf("invalid property. prop=%v, type=%t", prop, prop))
+	}
+}
+
+// newParent creates a new parent node by traversing up the hierarchy by the specified depth.
+// It attempts to set the value at the current node in the parent node, preserving the path up to the last property.
+// If the depth is 0 or an error is present in the current node, it returns the current node.
+func (n *Node) newParent(depth int) *Node {
+	if depth <= 0 || n.err != nil {
+		return n
+	}
+
+	return n.parent.
+		setValue(n.value, n.path[len(n.path)-1]).
+		newParent(depth - 1)
+}
+
 func unmarshal(path jsonpath, data []byte, v jsonvalue) error {
 	err := json.Unmarshal(data, v)
 	if err != nil {
@@ -226,35 +353,4 @@ func marshal(path jsonpath, v jsonvalue) ([]byte, error) {
 		}
 	}
 	return data, nil
-}
-
-func getInt(n any) (int, error) {
-	switch i := any(n).(type) {
-	case int:
-		return i, nil
-	case int64:
-		return int(i), nil
-	case int32:
-		return int(i), nil
-	case int16:
-		return int(i), nil
-	case int8:
-		return int(i), nil
-	case uint:
-		return int(i), nil
-	case uint64:
-		return int(i), nil
-	case uint32:
-		return int(i), nil
-	case uint16:
-		return int(i), nil
-	case uint8:
-		return int(i), nil
-	case float64:
-		return int(i), nil
-	case float32:
-		return int(i), nil
-	default:
-		return 0, fmt.Errorf("invalid integer. n=%v, type=%t", n, n)
-	}
 }

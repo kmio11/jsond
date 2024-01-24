@@ -64,6 +64,36 @@ func ExampleNode_Get() {
 	// Test output
 }
 
+func ExampleNode_Set() {
+	src := []byte(`
+	{
+		"total_count": 2,
+		"artifacts": [
+		  {
+			"id": 11,
+			"name": "Rails"
+		  },
+		  {
+			"id": 13,
+			"name": "Test output"
+		  }
+		]
+	  }
+	`)
+
+	b, _ := jsond.Parse(src).
+		Set(
+			"Golang",               // new value
+			"artifacts", 0, "name", // path to set new value
+		).
+		Marshal()
+
+	fmt.Println(string(b))
+
+	// Output:
+	// {"artifacts":[{"id":11,"name":"Golang"},{"id":13,"name":"Test output"}],"total_count":2}
+}
+
 func ExampleNode_Unmarshal_error() {
 	src := []byte(`
 	{
