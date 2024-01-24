@@ -6,7 +6,7 @@ import (
 	"github.com/kmio11/jsond"
 )
 
-func ExampleNode_Unmarshal() {
+func ExampleNode_Get_methodChain() {
 	src := []byte(`
 	{
 		"total_count": 2,
@@ -28,6 +28,34 @@ func ExampleNode_Unmarshal() {
 		Get("artifacts").
 		Get(1).
 		Get("name").
+		Unmarshal(&name)
+
+	fmt.Println(name)
+
+	// Output:
+	// Test output
+}
+
+func ExampleNode_Get() {
+	src := []byte(`
+	{
+		"total_count": 2,
+		"artifacts": [
+		  {
+			"id": 11,
+			"name": "Rails"
+		  },
+		  {
+			"id": 13,
+			"name": "Test output"
+		  }
+		]
+	  }
+	`)
+
+	var name string
+	_ = jsond.Parse(src).
+		Get("artifacts", 1, "name").
 		Unmarshal(&name)
 
 	fmt.Println(name)

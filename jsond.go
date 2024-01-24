@@ -92,7 +92,19 @@ func (n *Node) getObjectValue(key string) *Node {
 }
 
 // Get retrieves a child node based on the specified property (index or key).
-func (n *Node) Get(prop any) *Node {
+// If no properties are provided, the current node is returned.
+// It supports nested property access using variadic parameters.
+// If multiple properties are provided, it recursively calls Get on each property.
+func (n *Node) Get(props ...any) *Node {
+	if len(props) == 0 {
+		return n
+	}
+
+	if len(props) >= 2 {
+		return n.Get(props[0]).Get(props[1:]...)
+	}
+
+	prop := props[0]
 	validProp, err := getProperty(prop)
 	if err != nil {
 		panic(fmt.Sprintf("invalid property. prop=%v, type=%t", prop, prop))
