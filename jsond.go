@@ -175,7 +175,7 @@ func (n *Node) Unmarshal(v any) error {
 		return err
 	}
 
-	return unmarshal(n.path, data, &v)
+	return unmarshal(n.path, data, v)
 }
 
 // Marshal marshals the Node's value into JSON format.
@@ -190,7 +190,7 @@ func (n *Node) Marshal() ([]byte, error) {
 // Typed is a helper function to unmarshal a Node's value into a specified type.
 func Typed[T any](node *Node) (T, error) {
 	var v = *new(T)
-	err := node.Unmarshal(v)
+	err := node.Unmarshal(&v)
 	return v, err
 }
 

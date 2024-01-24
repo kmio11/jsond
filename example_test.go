@@ -189,6 +189,38 @@ func ExampleNode_AsObject() {
 	// name : Rails
 }
 
+func ExampleTyped() {
+	src := []byte(`
+	{
+		"total_count": 2,
+		"artifacts": [
+		  {
+			"id": 11,
+			"name": "Rails"
+		  },
+		  {
+			"id": 13,
+			"name": "Test output"
+		  }
+		]
+	  }
+	`)
+
+	artifact, _ := jsond.Typed[struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}](
+		jsond.Parse(src).Get("artifacts", 1),
+	)
+
+	fmt.Printf("id  : %d\n", artifact.ID)
+	fmt.Printf("name: %s", artifact.Name)
+
+	// Output:
+	// id  : 13
+	// name: Test output
+}
+
 func ExampleUndefined() {
 	src := []byte(`
 	{
