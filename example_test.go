@@ -154,7 +154,7 @@ func ExampleNode_AsObject() {
 		fmt.Printf("%s : %v\n", key, value)
 	}
 
-	// Output:
+	// Unordered Output:
 	// id : 11
 	// name : Rails
 }
