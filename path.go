@@ -6,7 +6,7 @@ import "fmt"
 type jsonpath []property
 
 // property represents path's element.
-// - int, for array property
+// - int, for array index
 // - string, for object key
 type property any
 
