@@ -13,7 +13,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/kmio11/jsond"
 )
@@ -37,9 +36,7 @@ func main() {
 
 	var name string
 	_ = jsond.Parse(src).
-		Get("artifacts").
-		Get(1).
-		Get("name").
+		Get("artifacts", 1, "name").
 		Unmarshal(&name)
 
 	fmt.Println(name)

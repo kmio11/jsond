@@ -94,31 +94,6 @@ func ExampleNode_Set() {
 	// {"artifacts":[{"id":11,"name":"Golang"},{"id":13,"name":"Test output"}],"total_count":2}
 }
 
-func ExampleNode_Unmarshal_error() {
-	src := []byte(`
-	{
-		"key1": {
-			"key2" : null
-		}
-	}
-	`)
-
-	var v string
-	err := jsond.Parse(src).
-		Get("key1").
-		Get("key2"). // null
-		Get("xxx").  // cannot read properties of null
-		Get("yyy").
-		Unmarshal(&v)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// Output:
-	// cannot read properties of null (reading 'xxx') at $['key1']['key2']['xxx']
-}
-
 func ExampleNode_AsArray() {
 	src := []byte(`
 	{
@@ -187,6 +162,65 @@ func ExampleNode_AsObject() {
 	// Unordered Output:
 	// id : 11
 	// name : Rails
+}
+
+func ExampleNode_Unmarshal() {
+	src := []byte(`
+	{
+		"total_count": 2,
+		"artifacts": [
+		  {
+			"id": 11,
+			"name": "Rails"
+		  },
+		  {
+			"id": 13,
+			"name": "Test output"
+		  }
+		]
+	  }
+	`)
+
+	artifact := struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}{}
+
+	_ = jsond.Parse(src).
+		Get("artifacts", 1).
+		Unmarshal(&artifact)
+
+	fmt.Printf("id  : %d\n", artifact.ID)
+	fmt.Printf("name: %s", artifact.Name)
+
+	// Output:
+	// id  : 13
+	// name: Test output
+}
+
+func ExampleNode_Unmarshal_error() {
+	src := []byte(`
+	{
+		"key1": {
+			"key2" : null
+		}
+	}
+	`)
+
+	var v string
+	err := jsond.Parse(src).
+		Get("key1").
+		Get("key2"). // null
+		Get("xxx").  // cannot read properties of null
+		Get("yyy").
+		Unmarshal(&v)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Output:
+	// cannot read properties of null (reading 'xxx') at $['key1']['key2']['xxx']
 }
 
 func ExampleTyped() {
