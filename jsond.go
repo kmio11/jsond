@@ -29,11 +29,11 @@ func Parse(data []byte) *Node {
 }
 
 // newChild creates a new child node with the given arguments.
-func (n *Node) newChild(value jsonvalue, path jsonpath, err error) *Node {
+func (n *Node) newChild(value jsonvalue, prop property, err error) *Node {
 	return &Node{
 		parent: n,
 		value:  value,
-		path:   path,
+		path:   n.path.append(prop),
 		err:    err,
 	}
 }
@@ -53,7 +53,7 @@ func (n *Node) getArrayElement(idx arrayIndex) *Node {
 
 	array, ok := n.value.([]any)
 	if !ok || int(idx) > len(array) {
-		return n.newChild(nil, path, newUndefined(path))
+		return n.newChild(nil, idx, newUndefined(path))
 	}
 
 	return &Node{
@@ -69,15 +69,15 @@ func (n *Node) getObjectValue(key objectKey) *Node {
 
 	object, ok := n.value.(map[string]any)
 	if !ok {
-		return n.newChild(nil, path, newUndefined(path))
+		return n.newChild(nil, key, newUndefined(path))
 	}
 
 	v, ok := object[string(key)]
 	if !ok {
-		return n.newChild(nil, path, newUndefined(path))
+		return n.newChild(nil, key, newUndefined(path))
 	}
 
-	return n.newChild(v, path, nil)
+	return n.newChild(v, key, nil)
 }
 
 // Get retrieves a child node based on the specified property (index or key).
@@ -103,7 +103,7 @@ func (n *Node) Get(props ...any) *Node {
 	path := n.path.append(validProp)
 
 	if n.IsUndefined() {
-		return n.newChild(nil, path, newReadUndefinedError(path))
+		return n.newChild(nil, validProp, newReadUndefinedError(path))
 	}
 
 	if n.err != nil {
@@ -111,7 +111,7 @@ func (n *Node) Get(props ...any) *Node {
 	}
 
 	if n.value == nil {
-		return n.newChild(nil, path, newReadNullError(path))
+		return n.newChild(nil, validProp, newReadNullError(path))
 	}
 
 	switch typedProp := validProp.(type) {
@@ -138,7 +138,7 @@ func (n *Node) AsArray() ([]*Node, error) {
 		nodeArray := []*Node{}
 		for i, v := range a {
 			nodeArray = append(nodeArray,
-				n.newChild(v, n.path.append(arrayIndex(i)), nil),
+				n.newChild(v, arrayIndex(i), nil),
 			)
 		}
 		return nodeArray, nil
@@ -157,7 +157,7 @@ func (n *Node) AsObject() (map[string]*Node, error) {
 	if m, ok := n.value.(map[string]any); ok {
 		nodeMap := map[string]*Node{}
 		for k, v := range m {
-			nodeMap[k] = n.newChild(v, n.path.append(objectKey(k)), nil)
+			nodeMap[k] = n.newChild(v, objectKey(k), nil)
 		}
 		return nodeMap, nil
 	}
@@ -256,8 +256,7 @@ func (n *Node) replaceValue(value any) *Node {
 func (n *Node) setArrayElement(v jsonvalue, idx arrayIndex) *Node {
 	array, ok := n.value.([]any)
 	if !ok || int(idx) > len(array) {
-		path := n.path.append(idx)
-		return n.newChild(nil, path, newSetUndefinedError(path))
+		return n.newChild(nil, idx, newSetUndefinedError(n.path.append(idx)))
 	}
 
 	newValue := append([]any{}, array...)
@@ -275,8 +274,7 @@ func (n *Node) setObjectValue(v jsonvalue, key objectKey) *Node {
 
 	object, ok := n.value.(map[string]any)
 	if !ok {
-		path := n.path.append(key)
-		return n.newChild(nil, path, newSetUndefinedError(path))
+		return n.newChild(nil, key, newSetUndefinedError(n.path.append(key)))
 	}
 
 	newValue := map[string]any{}
@@ -297,7 +295,7 @@ func (n *Node) setValue(v jsonvalue, prop property) *Node {
 	path := n.path.append(prop)
 
 	if n.IsUndefined() {
-		return n.newChild(nil, path, newSetUndefinedError(path))
+		return n.newChild(nil, prop, newSetUndefinedError(path))
 	}
 
 	if n.err != nil {
@@ -305,7 +303,7 @@ func (n *Node) setValue(v jsonvalue, prop property) *Node {
 	}
 
 	if n.value == nil {
-		return n.newChild(nil, path, newSetNullError(path))
+		return n.newChild(nil, prop, newSetNullError(path))
 	}
 
 	switch typedProp := prop.(type) {
