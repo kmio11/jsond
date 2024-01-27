@@ -1,5 +1,11 @@
 # jsond
-jsond is a dynamic JSON handling library for Go, designed to provide flexible and dynamic access to JSON data structures. 
+jsond is a dynamic JSON handling library for Go. It provides a simple and flexible way to parse and manipulate JSON data.
+
+## Features
+- **Dynamic JSON parsing**: Parse JSON data into a dynamic structure that can be easily navigated and manipulated.
+- **Flexible Data Access**: Access data in the JSON structure using a simple Get method. You can retrieve data by index for arrays or by key for objects.
+- **Data Modification**: Modify data in the JSON structure using the Set method. You can set data by index for arrays or by key for objects.
+- **Type Conversion**: Easily convert a value into a specified type using Unmarshal / Marshal functions.
 
 ## Installation
 ```bash
