@@ -187,8 +187,8 @@ func (n *Node) Marshal() ([]byte, error) {
 	return marshal(n.path, n.value)
 }
 
-// Typed is a helper function to unmarshal a Node's value into a specified type.
-func Typed[T any](node *Node) (T, error) {
+// UnmarshalNode is a helper function to unmarshal a Node's value into a specified type.
+func UnmarshalNode[T any](node *Node) (T, error) {
 	var v = *new(T)
 	err := node.Unmarshal(&v)
 	return v, err

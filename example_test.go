@@ -223,7 +223,7 @@ func ExampleNode_Unmarshal_error() {
 	// cannot read properties of null (reading 'xxx') at $['key1']['key2']['xxx']
 }
 
-func ExampleTyped() {
+func ExampleUnmarshalNode() {
 	src := []byte(`
 	{
 		"total_count": 2,
@@ -240,7 +240,7 @@ func ExampleTyped() {
 	  }
 	`)
 
-	artifact, _ := jsond.Typed[struct {
+	artifact, _ := jsond.UnmarshalNode[struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}](
