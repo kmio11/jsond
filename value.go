@@ -1,6 +1,9 @@
 package jsond
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // jsonvalue represents a json.Unmarshal result.
 // (https://pkg.go.dev/encoding/json#Unmarshal)
@@ -32,5 +35,24 @@ func getJSONValue(v any) (jsonvalue, error) {
 		jv := *new(jsonvalue)
 		err = json.Unmarshal(data, &jv)
 		return jv, err
+	}
+}
+
+func getTypeString(v jsonvalue) string {
+	switch v.(type) {
+	case bool:
+		return "bool"
+	case float64:
+		return "number"
+	case string:
+		return "string"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	case nil:
+		return "nil"
+	default:
+		panic(fmt.Sprintf("invalid jsonvalue. v=%v", v))
 	}
 }

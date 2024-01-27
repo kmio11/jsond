@@ -25,6 +25,7 @@ const (
 	codeReadUndefinedError
 	codeSetNullError
 	codeSetUndefinedError
+	codeCreatePopertyError
 )
 
 func (e NodeError) Error() string {
@@ -81,6 +82,16 @@ func newSetUndefinedError(path jsonpath) error {
 		code: codeSetUndefinedError,
 		path: path,
 		err:  fmt.Errorf("cannot set properties of undefined (setting '%v')", prop),
+	}
+}
+
+func newCreatePopertyError(path jsonpath, parentValue jsonvalue) error {
+	prop := path[len(path)-1]
+
+	return &NodeError{
+		code: codeCreatePopertyError,
+		path: path,
+		err:  fmt.Errorf(`cannot create property '%v' on %s '%v'`, prop, getTypeString(parentValue), parentValue),
 	}
 }
 

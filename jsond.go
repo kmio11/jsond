@@ -255,11 +255,19 @@ func (n *Node) replaceValue(value any) *Node {
 
 func (n *Node) setArrayElement(v jsonvalue, idx arrayIndex) *Node {
 	array, ok := n.value.([]any)
-	if !ok || int(idx) > len(array) {
-		return n.newChild(nil, idx, newSetUndefinedError(n.path.append(idx)))
+	if !ok {
+		return n.newChild(nil, idx,
+			newCreatePopertyError(n.path.append(idx), n.value),
+		)
 	}
 
-	newValue := append([]any{}, array...)
+	newLen := len(array)
+	if int(idx) > len(array) {
+		newLen = int(idx) + 1
+	}
+
+	newValue := make([]any, newLen)
+	copy(newValue, array)
 	newValue[int(idx)] = v
 
 	return &Node{
@@ -274,7 +282,10 @@ func (n *Node) setObjectValue(v jsonvalue, key objectKey) *Node {
 
 	object, ok := n.value.(map[string]any)
 	if !ok {
-		return n.newChild(nil, key, newSetUndefinedError(n.path.append(key)))
+		return n.newChild(
+			nil, key,
+			newCreatePopertyError(n.path.append(key), n.value),
+		)
 	}
 
 	newValue := map[string]any{}
